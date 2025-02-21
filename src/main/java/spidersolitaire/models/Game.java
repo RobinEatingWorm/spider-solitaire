@@ -2,33 +2,73 @@ package spidersolitaire.models;
 
 import java.util.ArrayList;
 
-import spidersolitaire.constants.Constants;
-import spidersolitaire.controllers.GameControllerOutputBoundary;
+public final class Game {
+    private static final int nColumns = 10;
+    private static final int nRuns = 8;
+    private static final int nStocks = 5;
+
+    @SuppressWarnings("unchecked")
+    private static final ArrayList<Card>[] columns = new ArrayList[Game.nColumns];
+
+    @SuppressWarnings("unchecked")
+    private static final ArrayList<Card>[] runs = new ArrayList[Game.nRuns];
+
+    @SuppressWarnings("unchecked")
+    private static final ArrayList<Card>[] stocks = new ArrayList[Game.nStocks];
+
+    private static final ArrayList<ArrayList<MoveComponent>> moves = new ArrayList<>();
 
 
-public class Game {
-    private final Board board;
-    private GameControllerOutputBoundary outputBoundary;
-
-    public Game() {
-        this.board = new Board();
-        this.outputBoundary = null;
+    private Game() {
+        throw new UnsupportedOperationException("Cannot instantiate class Game");
     }
 
-    public void setOutputBoundary(GameControllerOutputBoundary outputBoundary) {
-        this.outputBoundary = outputBoundary;
+    public static int getNColumns() {
+        return Game.nColumns;
     }
 
-    public void startNewGame(int nSuits) {
-        this.board.createInitialBoard(nSuits);
-        onGameUpdate();
+    public static int getNRuns() {
+        return Game.nRuns;
     }
 
-    public Board getBoard() {
-        return this.board;
+    public static int getNStocks() {
+        return Game.nStocks;
     }
 
-    private void onGameUpdate() {
-        outputBoundary.handleGameUpdate();
+    public static int getColumnLength(int columnIndex) {
+        return Game.columns[columnIndex].size();
+    }
+
+    public static int getRunLength(int runIndex) {
+        return Game.runs[runIndex].size();
+    }
+
+    public static int getStockLength(int stockIndex) {
+        return Game.stocks[stockIndex].size();
+    }
+
+    static ArrayList<Card>[] getColumns() {
+        return Game.columns;
+    }
+
+    static ArrayList<Card>[] getRuns() {
+        return Game.runs;
+    }
+
+    static ArrayList<Card>[] getStocks() {
+        return Game.stocks;
+    }
+
+    static ArrayList<ArrayList<MoveComponent>> getMoves() {
+        return Game.moves;
+    }
+
+    public static Card getCard(String location, int locationIndex, int stackIndex) {
+        return switch (location) {
+            case "columns" -> Game.columns[locationIndex].get(stackIndex);
+            case "runs" -> Game.runs[locationIndex].get(stackIndex);
+            case "stocks" -> Game.stocks[locationIndex].get(stackIndex);
+            default -> throw new UnsupportedOperationException("Invalid location");
+        };
     }
 }

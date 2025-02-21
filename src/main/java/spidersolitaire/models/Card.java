@@ -1,17 +1,14 @@
 package spidersolitaire.models;
 
-
 public class Card {
     private final int rank;
     private final int suit;
     private boolean faceUp;
-    private boolean movable;
 
     Card(int rank, int suit, boolean faceUp) {
         this.rank = rank;
         this.suit = suit;
-        this.faceUp = true;
-        this.movable = false;
+        this.faceUp = faceUp;
     }
 
     public int getRank() {
@@ -22,19 +19,11 @@ public class Card {
         return this.suit;
     }
 
-    public boolean isFaceUp() {
+    public boolean getFaceUp() {
         return this.faceUp;
     }
 
-    public boolean isMovable() {
-        return this.movable;
-    }
-
-    void setMoveable(boolean movable) {
-        this.movable = movable;
-    }
-
-    void turn() {
-        this.faceUp = !this.faceUp;
+    void setFaceUp(boolean faceUp) {
+        this.faceUp = faceUp;
     }
 }
