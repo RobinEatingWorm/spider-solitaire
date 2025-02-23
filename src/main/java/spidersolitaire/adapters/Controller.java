@@ -51,7 +51,9 @@ public final class Controller {
         if (this.gameViewModel.getClientPosition() != null) {
             int fromColumnIndex = this.gameViewModel.getMoveColumnIndex();
             int fromStackIndex = this.gameViewModel.getMoveStackIndex();
-            this.makeColumnMove(fromColumnIndex, fromStackIndex, toColumnIndex);
+            if (this.logic.isValidColumnMove(fromColumnIndex, fromStackIndex, toColumnIndex)) {
+                this.logic.makeColumnMove(fromColumnIndex, fromStackIndex, toColumnIndex);
+            }
         }
         this.onGameStateUpdate();
     }
@@ -98,14 +100,6 @@ public final class Controller {
     public void handleMouseClickedGame() {
         this.presenter.handleMouseClickedGame();
     }
-
-    private void makeColumnMove(int fromColumnIndex, int fromStackIndex, int toColumnIndex) {
-        if (this.logic.isValidColumnMove(fromColumnIndex, fromStackIndex, toColumnIndex)) {
-            this.logic.makeColumnMove(fromColumnIndex, fromStackIndex, toColumnIndex);
-        }
-    }
-
-
 
     private void onGameStateUpdate() {
         int nColumns = Game.getNColumns();
