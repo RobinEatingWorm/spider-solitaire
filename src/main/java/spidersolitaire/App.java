@@ -1,31 +1,40 @@
 package spidersolitaire;
 
-import spidersolitaire.controllers.Controller;
-
 import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
+
+import spidersolitaire.adapters.Controller;
+import spidersolitaire.adapters.GameViewModel;
+import spidersolitaire.adapters.Presenter;
+import spidersolitaire.models.Game;
+import spidersolitaire.models.Logic;
+import spidersolitaire.views.GameView;
 
 
 public class App extends Application {
     @Override
     public void start(Stage primaryStage) {
-        // Listeners for viewport changes to update CSS
-        primaryStage.heightProperty()
-                .addListener((observable, oldValue, newValue) -> onCSSUpdate());
-        primaryStage.widthProperty()
-                .addListener((observable, oldValue, newValue) -> onCSSUpdate());
+        // Set up models
+        Game game = new Game();
+        Logic logic = new Logic(game);
+
+        // Set up adapters
+        GameViewModel gameViewModel = new GameViewModel();
+        Presenter presenter = new Presenter(gameViewModel);
+        Controller controller = new Controller(game, logic, presenter, gameViewModel);
+
+        // Set up views
+        GameView gameView = new GameView(controller);
+        primaryStage.widthProperty().addListener((observable, oldValue, newValue) -> gameView.updateMeasurements());
+        gameViewModel.addObserver(gameView);
+        controller.handleNewGame(1);
 
         // Start the app
-        Controller.newGame(1);
-        Scene scene = new Scene(Controller.getGameView());
+        Scene scene = new Scene(gameView);
         primaryStage.setTitle("Spider Solitaire");
         primaryStage.setScene(scene);
         primaryStage.show();
-    }
-
-    private void onCSSUpdate() {
-        Controller.handleCSSUpdate();
     }
 
     public static void main(String[] args) {

@@ -1,8 +1,5 @@
 package spidersolitaire.views;
 
-import spidersolitaire.controllers.Controller;
-import spidersolitaire.models.Game;
-
 import java.util.stream.IntStream;
 
 import javafx.geometry.Bounds;
@@ -11,29 +8,37 @@ import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.Separator;
 import javafx.scene.control.ToolBar;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.Font;
+import javafx.scene.text.Text;
 
-public final class GameView extends ScrollPane {
-    private final VBox gameView;
-    private final VBox boardView;
-    private final ToolBar controlView;
+import spidersolitaire.adapters.Controller;
+import spidersolitaire.adapters.GameViewModel;
+import spidersolitaire.adapters.GameViewModelObserver;
 
-    private final HBox columnsView;
-    private final HBox runsView;
-    private final HBox stocksView;
+public final class GameView extends ScrollPane implements GameViewModelObserver {
+    private final Controller controller;
 
-    private final VBox[] columnViews;
+    private final VBox game;
+    private final VBox board;
+    private final ToolBar control;
 
-    private final Button newGameView;
-    private final ChoiceBox<String> nSuitsView;
-    private final Button resetGameView;
-    private final Button undoMoveView;
+    private final VBox[] columns;
+    private final HBox runs;
+    private final HBox stocks;
 
-    private CardView[] dragCardViews;
+    private final Button newGame;
+    private final ChoiceBox<String> nSuits;
+    private final Button resetGame;
+    private final Button undoMove;
+    private final Text win;
+
+    private CardView[] draggedCards;
 
     private static final double boardMaxAspectRatio = 16.0 / 9.0;
     private static final double boardMaxWidth = 1280;
@@ -45,231 +50,275 @@ public final class GameView extends ScrollPane {
     private static final double runsMaxSpacing = 32;
     private static final double stocksMaxSpacing = 32;
 
-    public GameView() {
+    public GameView(Controller controller) {
         super();
+        this.controller = controller;
 
-        // Set up location views
-        this.columnViews = new VBox[Game.getNColumns()];
-        IntStream.range(0, Game.getNColumns()).forEach(i -> this.columnViews[i] = new VBox());
-        this.columnsView = new HBox(this.columnViews);
-        this.runsView = new HBox();
-        this.stocksView = new HBox();
-
-        // Set up board view
-        Region boardBottomViewSpacerLeft = new Region();
-        Region boardBottomViewSpacerCenterLeft = new Region();
-        Region boardBottomViewSpacerCenterRight = new Region();
-        Region boardBottomViewSpacerRight = new Region();
-        HBox.setHgrow(boardBottomViewSpacerLeft, Priority.ALWAYS);
-        HBox.setHgrow(boardBottomViewSpacerCenterLeft, Priority.ALWAYS);
-        HBox.setHgrow(boardBottomViewSpacerCenterRight, Priority.ALWAYS);
-        HBox.setHgrow(boardBottomViewSpacerRight, Priority.ALWAYS);
-        HBox boardBottomView = new HBox(
-            boardBottomViewSpacerLeft,
-            this.runsView,
-            boardBottomViewSpacerCenterLeft,
-            boardBottomViewSpacerCenterRight,
-            this.stocksView,
-            boardBottomViewSpacerRight
+        // Set up locations
+        this.columns = new VBox[GameViewModel.getNColumns()];
+        IntStream.range(0, GameViewModel.getNColumns()).forEach(i -> this.columns[i] = new VBox());
+        this.runs = new HBox();
+        this.stocks = new HBox();
+        
+        // Set up board
+        HBox boardColumns = new HBox(this.columns);
+        Region boardBottomLeftSpacer = new Region();
+        Region boardBottomCenterLeftSpacer = new Region();
+        Region boardBottomCenterRightSpacer = new Region();
+        Region boardBottomRightSpacer = new Region();
+        HBox.setHgrow(boardBottomLeftSpacer, Priority.ALWAYS);
+        HBox.setHgrow(boardBottomCenterLeftSpacer, Priority.ALWAYS);
+        HBox.setHgrow(boardBottomCenterRightSpacer, Priority.ALWAYS);
+        HBox.setHgrow(boardBottomRightSpacer, Priority.ALWAYS);
+        HBox boardBottom = new HBox(
+            boardBottomLeftSpacer,
+            this.runs,
+            boardBottomCenterLeftSpacer,
+            boardBottomCenterRightSpacer,
+            this.stocks,
+            boardBottomRightSpacer
         );
-        this.boardView = new VBox(this.columnsView, boardBottomView);
+        this.board = new VBox(boardColumns, boardBottom);
+        
+        // Set up control
+        this.newGame = new Button("New Game");
+        this.nSuits = new ChoiceBox<>();
+        this.nSuits.getItems().addAll("1 Suit", "2 Suits", "4 Suits");
+        this.nSuits.setValue("1 Suit");
+        this.resetGame = new Button("Reset Game");
+        this.undoMove = new Button("Undo Move");
+        this.win = new Text();
+        this.control = new ToolBar(this.newGame, this.nSuits, this.resetGame, this.undoMove, new Separator(), this.win);
 
-        // Set up control view
-        this.newGameView = new Button("New Game");
-        this.nSuitsView = new ChoiceBox<>();
-        this.nSuitsView.getItems().addAll("1 Suit", "2 Suits", "4 Suits");
-        this.nSuitsView.setValue("1 Suit");
-        this.resetGameView = new Button("Reset Game");
-        this.undoMoveView = new Button("Undo Move");
-        this.controlView = new ToolBar(this.newGameView, this.nSuitsView, this.resetGameView, this.undoMoveView);
+        // Set up game
+        this.game = new VBox(this.control, this.board);
+        this.setContent(this.game);
 
-        // No cards dragged yet
-        this.dragCardViews = null;
+        // No dragged cards yet
+        this.draggedCards = new CardView[0];
 
-        // Add everything to game view
-        this.gameView = new VBox();
-        this.gameView.getChildren().addAll(this.controlView, this.boardView);
-        this.setContent(this.gameView);
-
-        // Set style of game
+        // Set overall measurements
         this.setFitToWidth(true);
-        this.gameView.setAlignment(Pos.TOP_CENTER);
-        this.boardView.setMaxWidth(GameView.boardMaxWidth);
-        VBox.setVgrow(this.columnsView, Priority.ALWAYS);
+        this.game.setAlignment(Pos.TOP_CENTER);
+        this.board.setMaxWidth(GameView.boardMaxWidth);
+        VBox.setVgrow(boardColumns, Priority.ALWAYS);
 
         // Set board event handlers
-        this.gameView.setOnMouseDragged(event -> Controller.handleMouseDraggedGame(event));
-        this.gameView.setOnMouseDragReleased(event -> {
-            int toColumnIndex = IntStream.range(0, Game.getNColumns())
-                    .mapToObj(i -> isInColumnView(i, event.getSceneX(), event.getSceneY()))
+        this.game.setOnMouseDragged(event -> this.controller.handleMouseDraggedGame(event));
+        this.game.setOnMouseDragReleased(event -> {
+            int toColumnIndex = IntStream.range(0, GameViewModel.getNColumns())
+                    .mapToObj(i -> isInColumn(i, event.getSceneX(), event.getSceneY()))
                     .toList()
                     .indexOf(true);
             if (toColumnIndex == -1) {
-                Controller.handleMouseDragReleasedGame();
+                this.controller.handleMouseDragReleasedGame();
             } else {
-                Controller.handleMouseDragReleasedColumn(toColumnIndex);
+                this.controller.handleMouseDragReleasedColumn(toColumnIndex);
             }
         });
-        this.gameView.setOnMouseClicked(event -> Controller.handleMouseClickedGame());
-        IntStream.range(0, Game.getNColumns()).forEach(i -> {
-            this.columnViews[i].setOnMouseClicked(event -> {
-                event.consume();
-                Controller.handleMouseClickedColumn(i);
-            });
-        });
+        this.game.setOnMouseClicked(event -> this.controller.handleMouseClickedGame());
+        IntStream.range(0, GameViewModel.getNColumns()).forEach(i -> this.columns[i].setOnMouseClicked(event -> {
+            event.consume();
+            this.controller.handleMouseClickedColumn(i);
+        }));
 
         // Set control event handlers
-        this.newGameView.setOnMouseClicked(event -> Controller.newGame(
-            switch (this.nSuitsView.getValue()) {
+        this.newGame.setOnMouseClicked(event -> this.controller.handleNewGame(
+            switch (this.nSuits.getValue()) {
                 case "1 Suit" -> 1;
                 case "2 Suits" -> 2;
                 case "4 Suits" -> 4;
-                default -> throw new UnsupportedOperationException("Invalid number of suits");
+                default -> throw new UnsupportedOperationException("Invalid GameView nSuits");
             }
         ));
-        this.resetGameView.setOnMouseClicked(event -> Controller.resetGame());
-        this.undoMoveView.setOnMouseClicked(event -> Controller.undoMove());
+        this.resetGame.setOnMouseClicked(event -> this.controller.handleResetGame());
+        this.undoMove.setOnMouseClicked(event -> this.controller.handleUndoMove());
     }
 
-    public void updateGameView() {
-        // Add cards to locations
-        IntStream.range(0, Game.getNColumns()).forEach(i -> {
-            this.columnViews[i].getChildren().clear();
-            IntStream.range(0, Game.getColumnLength(i))
-                    .forEach(j -> this.columnViews[i].getChildren().add(new CardView("columns", i, j)));
-        });
-        this.runsView.getChildren().clear();
-        IntStream.range(0, Game.getNRuns()).forEach(i -> {
-            if (Game.getRunLength(i) > 0) {
-                this.runsView.getChildren().add(new CardView("runs", i, 0));
+    @Override
+    public void onGameStateUpdate(GameViewModel gameViewModel) {
+        this.updateContent(gameViewModel);
+        this.updateVisuals(gameViewModel);
+        this.updateMeasurements();
+    }
+
+    @Override
+    public void onMoveStateUpdate(GameViewModel gameViewModel) {
+        this.updateVisuals(gameViewModel);
+    }
+
+    void updateContent(GameViewModel gameViewModel) {
+        // Replace cards in locations
+        for (int i = 0; i < GameViewModel.getNColumns(); i++) {
+            this.columns[i].getChildren().clear();
+            for (int j = 0; j < gameViewModel.getColumns()[i].size(); j++) {
+                CardView cardView = new CardView(gameViewModel.getCard("columns", i, j), this.controller);
+                this.columns[i].getChildren().add(cardView);
             }
-        });
-        this.stocksView.getChildren().clear();
-        IntStream.range(0, Game.getNStocks()).forEach(i -> {
-            if (Game.getStockLength(i) > 0) {
-                this.stocksView.getChildren().add(new CardView("stocks", i, 0));
+        }
+        this.runs.getChildren().clear();
+        for (int i = 0; i < GameViewModel.getNRuns(); i++) {
+            if (gameViewModel.getRuns()[i].size() > 0) {
+                CardView cardView = new CardView(gameViewModel.getCard("runs", i, 0), this.controller);
+                this.runs.getChildren().add(cardView);
             }
-        });
+        }
+        this.stocks.getChildren().clear();
+        for (int i = 0; i < GameViewModel.getNStocks(); i++) {
+            if (gameViewModel.getStocks()[i].size() > 0) {
+                CardView cardView = new CardView(gameViewModel.getCard("stocks", i, 0), this.controller);
+                this.stocks.getChildren().add(cardView);
+            }
+        }
 
         // Clear previously dragged cards
-        if (this.dragCardViews != null) {
-            this.gameView.getChildren().removeAll(this.dragCardViews);
+        if (this.draggedCards != null) {
+            this.game.getChildren().removeAll(this.draggedCards);
+            this.draggedCards = new CardView[0];
         }
-        this.dragCardViews = null;
     }
 
-    public void updateCSS() {
+    public void updateMeasurements() {
         // Set overall positioning
-        this.gameView.setMinHeight(this.getViewportBounds().getHeight());
+        this.game.setMinHeight(this.getViewportBounds().getHeight());
 
         // Calculate board measurements
-        double boardWidth = this.boardView.getWidth();
-        double boardMaxWidthFraction = boardWidth / GameView.boardMaxWidth;
+        double boardWidth = this.board.getWidth();
+        double boardWidthFraction = boardWidth / GameView.boardMaxWidth;
         double boardPadding = boardWidth / GameView.boardPaddingRatio;
         double boardContentWidth = boardWidth - 2 * boardPadding;
 
-        // Set board and control measurements
-        this.boardView.setMinHeight(boardWidth / GameView.boardMaxAspectRatio);
-        this.boardView.setPadding(new Insets(boardPadding));
+        // Set board measurements
+        this.board.setMinHeight(boardWidth / GameView.boardMaxAspectRatio);
+        this.board.setPadding(new Insets(boardPadding));
 
-        // Calculate card and card space measurements
-        double cardSpaceWidth = boardContentWidth / Game.getNColumns();
+        // Calculate card and space measurements
+        double cardSpaceWidth = boardContentWidth / GameViewModel.getNColumns();
         double cardSpacePadding = boardWidth / GameView.cardSpacePaddingRatio;
         double cardWidth = cardSpaceWidth - 2 * cardSpacePadding;
         double cardHeight = cardWidth / GameView.cardAspectRatio;
         double cardSpaceHeight = cardHeight + 2 * cardSpacePadding;
-        double runsContentWidth = GameView.runsMaxSpacing * boardMaxWidthFraction * (Game.getNRuns() - 1) + cardWidth;
-        double stocksContentWidth = GameView.stocksMaxSpacing * boardMaxWidthFraction * (Game.getNStocks() - 1)
+        double runsContentWidth = GameView.runsMaxSpacing * boardWidthFraction * (GameViewModel.getNRuns() - 1)
                 + cardWidth;
-
+        double stocksContentWidth = GameView.stocksMaxSpacing * boardWidthFraction * (GameViewModel.getNStocks() - 1)
+                + cardWidth;
+        
         // Set measurements of locations and cards
-        IntStream.range(0, Game.getNColumns()).forEach(i -> {
-            VBox columnView = this.columnViews[i];
-            columnView.setPrefWidth(cardSpaceWidth);
-            columnView.setPadding(new Insets(cardSpacePadding));
-            columnView.setSpacing(GameView.columnMaxSpacing * boardMaxWidthFraction - cardHeight);
-            IntStream.range(0, this.columnViews[i].getChildren().size()).forEach(j -> {
-                CardView cardView = (CardView) columnView.getChildren().get(j);
-                cardView.updateCSS(cardHeight, cardWidth, boardMaxWidthFraction);
-            });
-        });
-        this.runsView.setPrefHeight(cardSpaceHeight);
-        this.runsView.setPrefWidth(runsContentWidth + 2 * cardSpacePadding);
-        this.runsView.setPadding(new Insets(cardSpacePadding));
-        this.runsView.setSpacing(GameView.runsMaxSpacing * boardMaxWidthFraction - cardWidth);
-        IntStream.range(0, Game.getNRuns()).forEach(i -> {
-            if (Game.getRunLength(i) > 0) {
-                CardView cardView = (CardView) this.runsView.getChildren().get(i);
-                cardView.updateCSS(cardHeight, cardWidth, boardMaxWidthFraction);
+        for (int i = 0; i < GameViewModel.getNColumns(); i++) {
+            VBox column = this.columns[i];
+            column.setPrefWidth(cardSpaceWidth);
+            column.setPadding(new Insets(cardSpacePadding));
+            column.setSpacing(GameView.columnMaxSpacing * boardWidthFraction - cardHeight);
+            for (int j = 0; j < column.getChildren().size(); j++) {
+                CardView cardView = (CardView) column.getChildren().get(j);
+                cardView.updateMeasurements(cardHeight, cardWidth, boardWidthFraction);
             }
-        });
-        this.stocksView.setPrefHeight(cardSpaceHeight);
-        this.stocksView.setPrefWidth(stocksContentWidth + 2 * cardSpacePadding);
-        this.stocksView.setPadding(new Insets(cardSpacePadding));
-        this.stocksView.setSpacing(GameView.stocksMaxSpacing * boardMaxWidthFraction - cardWidth);
-        IntStream.range(0, Game.getNStocks()).forEach(i -> {
-            if (Game.getStockLength(i) > 0) {
-                CardView cardView = (CardView) this.stocksView.getChildren().get(i);
-                cardView.updateCSS(cardHeight, cardWidth, boardMaxWidthFraction);
-            }
-        });
-
-        // Calculate control measurements
-        double controlFontSize = GameView.controlMaxFontSize * boardMaxWidthFraction;
-
-        // Set control measurements
-        this.controlView.setPadding(new Insets(boardPadding));
-        this.newGameView.setStyle("-fx-font-size: " + controlFontSize + "px;");
-        this.nSuitsView.setStyle("-fx-font-size: " + controlFontSize + "px;");
-        this.resetGameView.setStyle("-fx-font-size: " + controlFontSize + "px;");
-        this.undoMoveView.setStyle("-fx-font-size: " + controlFontSize + "px;");
-
-        // Set positions of dragged cards
-        if (Controller.getClientPosition() != null) {
-            int moveColumnIndex = Controller.getMoveColumnIndex();
-            int moveStackIndex = Controller.getMoveStackIndex();
-            VBox columnView = this.columnViews[moveColumnIndex];
-            int columnViewLength = columnView.getChildren().size();
-
-            // Allow absolute positioning of dragged cards if not done already
-            if (columnViewLength > moveStackIndex) {
-                int nDragCardViews = columnViewLength - moveStackIndex;
-                this.dragCardViews = new CardView[nDragCardViews];
-                IntStream.range(0, nDragCardViews).forEach(i -> {
-                    CardView cardView = (CardView) columnView.getChildren().removeLast();
-                    cardView.setManaged(false);
-                    this.dragCardViews[nDragCardViews- i - 1] = cardView;
-                });
-                this.gameView.getChildren().addAll(this.dragCardViews);
-            }
-
-            // Update positions of dragged cards
-            IntStream.range(0, this.dragCardViews.length)
-                    .forEach(i -> this.dragCardViews[i].updateCSS(cardHeight, cardWidth, boardMaxWidthFraction));
+        }
+        this.runs.setPrefHeight(cardSpaceHeight);
+        this.runs.setPrefWidth(runsContentWidth + 2 * cardSpacePadding);
+        this.runs.setPadding(new Insets(cardSpacePadding));
+        this.runs.setSpacing(GameView.runsMaxSpacing * boardWidthFraction - cardWidth);
+        for (int i = 0; i < this.runs.getChildren().size(); i++) {
+            CardView cardView = (CardView) this.runs.getChildren().get(i);
+            cardView.updateMeasurements(cardHeight, cardWidth, boardWidthFraction);
+        }
+        this.stocks.setPrefHeight(cardSpaceHeight);
+        this.stocks.setPrefWidth(stocksContentWidth + 2 * cardSpacePadding);
+        this.stocks.setPadding(new Insets(cardSpacePadding));
+        this.stocks.setSpacing(GameView.stocksMaxSpacing * boardWidthFraction - cardWidth);
+        for (int i = 0; i < this.stocks.getChildren().size(); i++) {
+            CardView cardView = (CardView) this.stocks.getChildren().get(i);
+            cardView.updateMeasurements(cardHeight, cardWidth, boardWidthFraction);
         }
 
-        // DEBUG
-        this.gameView.setStyle("-fx-background-color: red;");
-        this.controlView.setStyle("-fx-background-color: orange;");
-        this.boardView.setStyle("-fx-background-color: yellow;");
-        this.columnsView.setStyle("-fx-background-color: lime;");
-        this.columnViews[0].setStyle("-fx-background-color: #00ff17;");
-        this.columnViews[1].setStyle("-fx-background-color: #00ff2f;");
-        this.columnViews[2].setStyle("-fx-background-color: #00ff45;");
-        this.columnViews[3].setStyle("-fx-background-color: #00ff5d;");
-        this.columnViews[4].setStyle("-fx-background-color: #00ff74;");
-        this.columnViews[5].setStyle("-fx-background-color: #00ff8c;");
-        this.columnViews[6].setStyle("-fx-background-color: #00ffa2;");
-        this.columnViews[7].setStyle("-fx-background-color: #00ffba;");
-        this.columnViews[8].setStyle("-fx-background-color: #00ffd1;");
-        this.columnViews[9].setStyle("-fx-background-color: #00ffe9;");
-        this.runsView.setStyle("-fx-background-color: cyan;");
-        this.stocksView.setStyle("-fx-background-color: blue;");
+        // Calculate control measurements
+        double controlFontSize = GameView.controlMaxFontSize * boardWidthFraction;
+
+        // Set control measurements
+        this.control.setPadding(new Insets(boardPadding));
+        this.newGame.setFont(new Font(controlFontSize));
+        this.nSuits.setStyle("-fx-font-size: " + controlFontSize + "px;");
+        this.resetGame.setFont(new Font(controlFontSize));
+        this.undoMove.setFont(new Font(controlFontSize));
+        this.win.setFont(new Font(controlFontSize));
+
+        // Set measurements of dragged cards
+        for (int i = 0; i < this.draggedCards.length; i++) {
+            CardView cardView = this.draggedCards[i];
+            cardView.updateMeasurements(cardHeight, cardWidth, boardWidthFraction);
+        }
     }
 
-    private boolean isInColumnView(int columnIndex, double sceneX, double sceneY) {
-        VBox columnView = this.columnViews[columnIndex];
-        Bounds sceneBounds = columnView.localToScene(columnView.getBoundsInLocal());
+    void updateVisuals(GameViewModel gameViewModel) {
+        // Get the client position, if any
+        double[] clientPosition = gameViewModel.getClientPosition();
+
+        // Set visuals of cards depending on the move
+        for (int i = 0; i < GameViewModel.getNColumns(); i++) {
+            VBox column = this.columns[i];
+            for (int j = 0; j < column.getChildren().size(); j++) {
+                CardView cardView = (CardView) column.getChildren().get(j);
+                String location = cardView.getLocation();
+                int locationIndex = cardView.getLocationIndex();
+                int stackIndex = cardView.getStackIndex();
+                boolean isInClickMove = gameViewModel.isInClickMove(location, locationIndex, stackIndex);
+                boolean isInDragMove = gameViewModel.isInDragMove(location, locationIndex, stackIndex);
+                cardView.updateVisuals(isInClickMove, isInDragMove, clientPosition);
+            }
+        }
+        for (int i = 0; i < this.runs.getChildren().size(); i++) {
+            CardView cardView = (CardView) this.runs.getChildren().get(i);
+            cardView.updateVisuals(false, false, clientPosition);
+        }
+        for (int i = 0; i < this.stocks.getChildren().size(); i++) {
+            CardView cardView = (CardView) this.stocks.getChildren().get(i);
+            cardView.updateVisuals(false, false, clientPosition);
+        }
+
+        // Detach dragged cards present in columns, if any
+        if (clientPosition != null) {
+            int moveColumnIndex = gameViewModel.getMoveColumnIndex();
+            int moveStackIndex = gameViewModel.getMoveStackIndex();
+            VBox column = this.columns[moveColumnIndex];
+            int columnLength = column.getChildren().size();
+            if (columnLength > moveStackIndex) {
+                int nDraggedCards = columnLength - moveStackIndex;
+                this.draggedCards = new CardView[nDraggedCards];
+                for (int i = 0; i < nDraggedCards; i++) {
+                    CardView cardView = (CardView) column.getChildren().removeLast();
+                    cardView.setManaged(false);
+                    this.draggedCards[nDraggedCards - i - 1] = cardView;
+                }
+                this.game.getChildren().addAll(this.draggedCards);
+            }
+        }
+
+        // Set visuals and positions of dragged cards
+        for (int i = 0; i < this.draggedCards.length; i++) {
+            CardView cardView = this.draggedCards[i];
+            cardView.updateVisuals(false, true, clientPosition);
+        }
+
+        // Set control win message
+        this.win.setText(this.runs.getChildren().size() == GameViewModel.getNRuns() ? "You win!" : "");
+
+        /*
+        // DEBUG: Distinct background colors of each region
+        this.game.setStyle("-fx-background-color: red;");
+        this.control.setStyle("-fx-background-color: orange;");
+        this.board.setStyle("-fx-background-color: yellow;");
+        for (int i = 0; i < GameViewModel.getNColumns(); i++) {
+            String b = Long.toHexString(Math.round(i * 255.0 / (GameViewModel.getNColumns() - 1)));
+            this.columns[i].setStyle("-fx-background-color: #00ff" + (b.length() == 1 ? "0" + b : b) + ";");
+        }
+        this.runs.setStyle("-fx-background-color: blue;");
+        this.stocks.setStyle("-fx-background-color: magenta;");
+        */
+    }
+
+    private boolean isInColumn(int columnIndex, double sceneX, double sceneY) {
+        VBox column = this.columns[columnIndex];
+        Bounds sceneBounds = column.localToScene(column.getBoundsInLocal());
         return sceneBounds.getMinX() <= sceneX
                 && sceneBounds.getMaxX() >= sceneX
                 && sceneBounds.getMinY() <= sceneY

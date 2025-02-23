@@ -1,6 +1,6 @@
 package spidersolitaire.models;
 
-public class Card {
+public final class Card {
     private final int rank;
     private final int suit;
     private boolean faceUp;
