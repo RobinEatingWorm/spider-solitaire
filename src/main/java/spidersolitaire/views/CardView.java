@@ -185,7 +185,7 @@ class CardView extends VBox {
     }
 
     private String formatSuit() {
-        return new String[]{"♠️", "♥️", "♣️", "♦️"}[this.suit];
+        return new String[]{"♠", "♥", "♣", "♦"}[this.suit];
     }
 
     private Color formatColor(boolean invert) {
