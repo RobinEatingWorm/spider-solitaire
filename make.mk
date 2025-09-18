@@ -11,7 +11,7 @@ JAVA_HOME = $(LIB_DIR)/$(JDK_DIR)
 else ifeq ($(OS), macOS)
 JAVA_HOME = $(LIB_DIR)/$(JDK_DIR)/Contents/Home
 else ifeq ($(OS), Linux)
-# TODO
+JAVA_HOME = $(LIB_DIR)/$(JDK_DIR)
 endif
 
 # Java tools
@@ -28,7 +28,11 @@ JAVAC = $(JAVA_HOME)/bin/javac
 JLINK = $(JAVA_HOME)/bin/jlink
 JPACKAGE = $(JAVA_HOME)/bin/jpackage
 else ifeq ($(OS), Linux)
-# TODO
+JAR = $(JAVA_HOME)/bin/jar
+JAVA = $(JAVA_HOME)/bin/java
+JAVAC = $(JAVA_HOME)/bin/javac
+JLINK = $(JAVA_HOME)/bin/jlink
+JPACKAGE = $(JAVA_HOME)/bin/jpackage
 endif
 
 # Paths to JavaFX SDK and jmods
@@ -58,7 +62,8 @@ else ifeq ($(OS), macOS)
 TARGET_APP = $(TARGET).app
 TARGET_TYPE = app-image
 else ifeq ($(OS), Linux)
-# TODO
+TARGET_APP = $(TARGET)
+TARGET_TYPE = app-image
 endif
 
 # Main rule
