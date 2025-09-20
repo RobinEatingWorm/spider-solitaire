@@ -67,7 +67,7 @@ $(TARGET_APP): $(BUILD_DIR)/$(TARGET_JAR) $(RUNTIME_DIR)
 # Runtime image
 ifeq ($(OS), Windows)
 $(RUNTIME_DIR):
-	$(JLINK) --output $@ --module-path $(JAVA_HOME)/jmods;$(FX_JMODS_PATH) --add-modules $(FX_MODULES)
+	$(JLINK) --output $@ --module-path "$(JAVA_HOME)/jmods;$(FX_JMODS_PATH)" --add-modules $(FX_MODULES)
 else ifneq ($(or $(filter macOS, $(OS)), $(filter Linux, $(OS))), )
 $(RUNTIME_DIR):
 	$(JLINK) --output $@ --module-path $(JAVA_HOME)/jmods:$(FX_JMODS_PATH) --add-modules $(FX_MODULES)
