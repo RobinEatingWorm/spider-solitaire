@@ -1,3 +1,8 @@
+# Assert valid OS
+ifeq ($(or $(filter Windows, $(OS)), $(filter macOS, $(OS)), $(filter Linux, $(OS))), )
+$(error OS must be one of Windows, macOS, or Linux)
+endif
+
 # Directories
 SRC_DIR = src
 LIB_DIR = lib
@@ -6,12 +11,10 @@ BUILD_DIR = build
 RUNTIME_DIR = runtime
 
 # Java home
-ifeq ($(OS), Windows)
+ifneq ($(or $(filter Windows, $(OS)), $(filter Linux, $(OS))), )
 JAVA_HOME = $(LIB_DIR)/$(JDK_DIR)
 else ifeq ($(OS), macOS)
 JAVA_HOME = $(LIB_DIR)/$(JDK_DIR)/Contents/Home
-else ifeq ($(OS), Linux)
-JAVA_HOME = $(LIB_DIR)/$(JDK_DIR)
 endif
 
 # Java tools
@@ -21,13 +24,7 @@ JAVA = $(JAVA_HOME)/bin/java.exe
 JAVAC = $(JAVA_HOME)/bin/javac.exe
 JLINK = $(JAVA_HOME)/bin/jlink.exe
 JPACKAGE = $(JAVA_HOME)/bin/jpackage.exe
-else ifeq ($(OS), macOS)
-JAR = $(JAVA_HOME)/bin/jar
-JAVA = $(JAVA_HOME)/bin/java
-JAVAC = $(JAVA_HOME)/bin/javac
-JLINK = $(JAVA_HOME)/bin/jlink
-JPACKAGE = $(JAVA_HOME)/bin/jpackage
-else ifeq ($(OS), Linux)
+else ifneq ($(or $(filter macOS, $(OS)), $(filter Linux, $(OS))), )
 JAR = $(JAVA_HOME)/bin/jar
 JAVA = $(JAVA_HOME)/bin/java
 JAVAC = $(JAVA_HOME)/bin/javac
@@ -40,8 +37,7 @@ FX_SDK_PATH = $(LIB_DIR)/$(FX_SDK_DIR)/lib
 FX_JMODS_PATH = $(LIB_DIR)/$(FX_JMODS_DIR)
 
 # Modules to add
-JAVA_MODULES = java.base
-FX_MODULES = javafx.base,javafx.controls,javafx.graphics
+FX_MODULES = javafx.controls
 
 # Targets
 TARGET = spidersolitaire
@@ -54,16 +50,11 @@ SOURCES = $(shell find $(SRC_DIR) -name "*.java")
 # Java manifest file
 MANIFEST = META-INF/MANIFEST.MF
 
-# Application type
-ifeq ($(OS), Windows)
+# Target application name
+ifneq ($(or $(filter Windows, $(OS)), $(filter Linux, $(OS))), )
 TARGET_APP = $(TARGET)
-TARGET_TYPE = app-image
 else ifeq ($(OS), macOS)
 TARGET_APP = $(TARGET).app
-TARGET_TYPE = app-image
-else ifeq ($(OS), Linux)
-TARGET_APP = $(TARGET)
-TARGET_TYPE = app-image
 endif
 
 # Main rule
@@ -71,11 +62,16 @@ all: $(TARGET_APP)
 
 # Application package
 $(TARGET_APP): $(BUILD_DIR)/$(TARGET_JAR) $(RUNTIME_DIR)
-	$(JPACKAGE) --name $(TARGET) --input $(BUILD_DIR) --main-jar $(TARGET_JAR) --main-class $(TARGET_CLASS) -t $(TARGET_TYPE) --runtime-image $(RUNTIME_DIR)
+	$(JPACKAGE) --name $(TARGET) --input $(BUILD_DIR) --main-jar $(TARGET_JAR) --main-class $(TARGET_CLASS) -t app-image --runtime-image $(RUNTIME_DIR)
 
 # Runtime image
+ifeq ($(OS), Windows)
 $(RUNTIME_DIR):
-	$(JLINK) --output $@ --module-path $(JAVA_HOME)/jmods --module-path $(FX_JMODS_PATH) --add-modules $(JAVA_MODULES),$(FX_MODULES)
+	$(JLINK) --output $@ --module-path $(JAVA_HOME)/jmods;$(FX_JMODS_PATH) --add-modules $(FX_MODULES)
+else ifneq ($(or $(filter macOS, $(OS)), $(filter Linux, $(OS))), )
+$(RUNTIME_DIR):
+	$(JLINK) --output $@ --module-path $(JAVA_HOME)/jmods:$(FX_JMODS_PATH) --add-modules $(FX_MODULES)
+endif
 
 # JAR archive
 $(BUILD_DIR)/$(TARGET_JAR): $(OUT_DIR) $(MANIFEST)
