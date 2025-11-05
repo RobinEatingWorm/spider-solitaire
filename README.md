@@ -5,8 +5,8 @@ cards from the board.
 
 ## Download
 
-Spider Solitaire is available for download. Go to the [releases](https://github.com/RobinEatingWorm/spider-solitaire)
-for more information.
+Spider Solitaire is available for download. Go to the
+[releases](https://github.com/RobinEatingWorm/spider-solitaire/releases) for more information.
 
 ## Rules
 
